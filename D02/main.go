@@ -109,6 +109,25 @@ func isSubset(b1 BallSet, b2 BallSet) bool {
     return b1.n_red <= b2.n_red && b1.n_blue <= b2.n_blue && b1.n_green <= b2.n_green
 }
 
+func unionSet(b1 BallSet, b2 BallSet) BallSet {
+    n_red := b2.n_red
+    if b1.n_red > b2.n_red {
+        n_red = b1.n_red
+    }
+
+    n_green := b2.n_green
+    if b1.n_green > b2.n_green {
+        n_green = b1.n_green
+    }
+
+    n_blue := b2.n_blue
+    if b1.n_blue > b2.n_blue {
+        n_blue = b1.n_blue
+    }
+
+    return BallSet{n_red, n_blue, n_green}
+}
+
 // Returns ID of the game if it's a possible game
 func getValidGameID(s string, b_ref BallSet) (int, error) {
     id, setlist, err := parseLine(s)
@@ -126,22 +145,34 @@ func getValidGameID(s string, b_ref BallSet) (int, error) {
     return id, nil
 }
 
+func getPowerSet(s string) (int, error) {
+    _, setlist, err := parseLine(s)
+
+    if err != nil {
+        return -1, err
+    }
+
+    b_acc := BallSet{}
+    for _, b := range setlist {
+        b_acc = unionSet(b_acc, b)
+    }
+
+    return b_acc.n_red * b_acc.n_blue * b_acc.n_green, nil
+}
+
 func main() {
     filepath := "./input.txt"
     f, _ := os.OpenFile(filepath, os.O_RDONLY, os.ModePerm)
     defer f.Close()
-
-    b := BallSet{12, 14, 13}
 
     sc := bufio.NewScanner(f)
     sum := 0
     for sc.Scan() {
         s := sc.Text()
         fmt.Printf("line: %s\n",s)
-        id, err := getValidGameID(s, b)
-        fmt.Printf("\tvalid: %v\n",id == 0)
+        power, err := getPowerSet(s)
         if err == nil {
-            sum += id
+            sum += power
         }
     }
     fmt.Printf("Final sum: %d\n", sum)
