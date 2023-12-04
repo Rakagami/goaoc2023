@@ -139,6 +139,24 @@ func readFileToMat(path string) ([][]byte, int, int, error) {
     return symbolMap, width, height, nil
 }
 
+func computeGearRatio(symbolMap [][]byte, coordinate Coordinate) (int, error) {
+    if symbolMap[coordinate.y][coordinate.x] != byte('*') {
+        return 0, errors.New("Not a gear symbol")
+    }
+    coordinateSet := map[ValuedCoordinate]bool{}
+    coordinateSet = findAdjacentNumbers(symbolMap, coordinate, coordinateSet)
+    if len(coordinateSet) != 2 {
+        return 0, errors.New("Not enough part numbers")
+    }
+
+    product := 1
+    for vc := range coordinateSet {
+        product *= vc.i
+    }
+
+    return product, nil
+}
+
 func main() {
     filepath := "./input.txt"
 
@@ -151,18 +169,22 @@ func main() {
     specialCoordinates := sparseMatrixParser(symbolMap, width, height)
     coordinateSet := map[ValuedCoordinate]bool{}
 
+    gSum := 0
     for _, sc := range specialCoordinates {
         coordinateSet = findAdjacentNumbers(symbolMap, sc, coordinateSet)
+        gr, _ := computeGearRatio(symbolMap, sc)
+        gSum += gr
     }
 
     //fmt.Println(coordinateSet)
     sum := 0
-    for vc, _ := range coordinateSet {
+    for vc := range coordinateSet {
         fmt.Println(vc)
         sum += vc.i
     }
     
-    fmt.Printf("Total Sum: %d\n", sum)
+    fmt.Printf("Total Sum of Part Numbers: %d\n", sum)
+    fmt.Printf("Total Sum of Gear Ratio: %d\n", gSum)
 
     //fmt.Printf("%v\n", specialCoordinates)
 }
