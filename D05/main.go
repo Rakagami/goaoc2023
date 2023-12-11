@@ -3,9 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/Rakagami/goaoc2023/utils"
@@ -210,22 +208,6 @@ func MapsToRangeSet(in utils.RangeSet, mapRanges []MapRange) utils.RangeSet {
     return out
 }
 
-func parseInts(s string) ([]int, error) {
-    re := regexp.MustCompile("\\d+")
-    
-    matchArr := re.FindAll([]byte(s), -1)
-    intArr := []int{}
-    for _, match := range matchArr {
-        i, err := strconv.Atoi(string(match))
-        if err != nil {
-            continue
-        }
-        intArr = append(intArr, i)
-    }
-
-    return intArr, nil
-}
-
 const TOTAL_MAPS int = 7
 
 func main() {
@@ -240,14 +222,14 @@ func main() {
         
         switch parseState {
         case 0:
-            nums, _ := parseInts(s)
+            nums, _ := utils.ParseInts(s)
             seeds = nums
             break
         default:
             if strings.Contains(s, ":") {
                 break
             } else {
-                nums, _ := parseInts(s)
+                nums, _ := utils.ParseInts(s)
                 mapRange := MapRange{
                     src: nums[1],
                     dst: nums[0],
