@@ -11,123 +11,6 @@ import (
 	"github.com/Rakagami/goaoc2023/utils"
 )
 
-type Range struct {
-    start int // inclusive start
-    n int // length of range
-}
-// Last value of range
-func (rs Range) End() int {return rs.start + rs.n - 1}
-// Checking whether value is in range
-func (rs Range) Check(i int) bool {return i >= rs.start && i < rs.start + rs.n}
-
-type RangeSet []Range
-func (rs RangeSet) Len() int      {return len(rs)}
-func (rs RangeSet) Swap(i, j int) {rs[i], rs[j] = rs[j], rs[i]}
-func (rs RangeSet) Less(i, j int) bool {return rs[i].start < rs[j].start}
-func (rs RangeSet) Sort() {
-    sort.Sort(rs)
-}
-
-// Linear Search because I'm lazy. Returns index
-func (rs RangeSet) FindRange(ref int) (int, error) {
-    for i, rg := range rs {
-        if ref <= rg.start && ref < rg.start + rg.n {
-            return i, nil
-        }
-    }
-    return -1, errors.New("Not Found")
-}
-
-// This function assumes that the rs RangeSet is already sorted
-// Uses binary search
-func (rs RangeSet) FindNextLowest(ref int) (int, error) {
-    if rs.Len() == 0 || (rs.Len() == 1 && rs[0].start > ref) {
-        return -1, errors.New("Not found")
-    } else if rs.Len() == 1 && rs[0].start <= ref {
-        return 0, nil
-    }
-
-    pivotIdx := int(rs.Len() / 2)
-    if rs[pivotIdx].start <= ref {
-        idx, err := rs[pivotIdx:].FindNextLowest(ref)
-        return pivotIdx + idx, err
-    } else {
-        return rs[:pivotIdx].FindNextLowest(ref)
-    }
-}
-
-// A SoftIntersection returns the a RangeSet of ranges that fall into the range
-// This function assumes that the rs RangeSet is already sorted
-func (rs RangeSet) SoftIntersection(rg Range) (int, int, error) {
-    start, end := rg.start, rg.End()
-
-    lastIdx, err := rs.FindNextLowest(end)
-    firstIdx := lastIdx
-
-    // Cases if there is no overlap
-    if err != nil {
-        return -1, -1, errors.New("No intersection")
-    } else if rs[lastIdx].End() < start {
-        return -1, -1, errors.New("No intersection")
-    }
-
-    // Finding the range in which start fits
-    for rs[firstIdx].start > start && firstIdx > 0 {
-        firstIdx--
-    }
-
-    if rs[firstIdx].Check(start) || firstIdx == lastIdx {
-        return firstIdx, lastIdx, nil
-    } else {
-        // Special handling in case the first range doesn't contain start
-        return firstIdx + 1, lastIdx, nil
-    }
-
-}
-
-// Removes indices from i to j
-func (rs RangeSet) RemoveIdxRange(i int, j int) RangeSet {
-    rs = append(rs[:i], rs[j+1:]...)
-    return rs
-}
-
-// Adds a range to range set. Merges ranges if necessary
-func (rs RangeSet) Add(rg Range) RangeSet {
-    rs.Sort()
-    startRgIdx, endRgIdx, err := rs.SoftIntersection(rg)
-
-    startVal, endVal := -1, -1
-    
-    if err != nil {
-        // If there's no overlap, just add range
-        startVal, endVal = rg.start, rg.End()
-    } else if rg.start < rs[startRgIdx].start {
-        startVal, endVal = rg.start, rs[endRgIdx].End()
-        rs = rs.RemoveIdxRange(startRgIdx, endRgIdx)
-    } else if rg.End() > rs[endRgIdx].End() {
-        startVal, endVal = rs[startRgIdx].start, rg.End()
-        rs = rs.RemoveIdxRange(startRgIdx, endRgIdx)
-    } else {
-        startVal, endVal = rs[startRgIdx].start, rs[endRgIdx].End()
-        rs = rs.RemoveIdxRange(startRgIdx, endRgIdx)
-    }
-
-    rs = append(rs, Range{
-        start: startVal,
-        n: endVal - startVal + 1,
-    })
-
-    rs.Sort()
-    return rs
-}
-
-func (rs1 RangeSet) Union(rs2 RangeSet) RangeSet {
-    for _, rg := range rs2 {
-        rs1 = rs1.Add(rg)
-    }
-    return rs1
-}
-
 type MapRange struct {
     src int
     dst int
@@ -158,16 +41,16 @@ func FindNextLowest(ref int, ranges []MapRange) (MapRange, error) {
 
 // Given reference index ref, this function returns the range that is smaller
 // than the reference. The returned range is in the destination space.
-func FindFittingMappedRange(ref int, ranges []MapRange) (Range, error) {
+func FindFittingMappedRange(ref int, ranges []MapRange) (utils.Range, error) {
     nextLowestRange, err := FindNextLowest(ref, ranges)
     if err != nil {
-        return Range{}, err
+        return utils.Range{}, err
     } else if nextLowestRange.src + nextLowestRange.n <= ref {
-        return Range{}, err
+        return utils.Range{}, err
     } else {
-        return Range{
-            start: nextLowestRange.dst,
-            n: ref - nextLowestRange.src + 1,
+        return utils.Range{
+            Start: nextLowestRange.dst,
+            N: ref - nextLowestRange.src + 1,
         }, nil
     }
 }
@@ -187,13 +70,13 @@ func MapsToSingle(in int, ranges []MapRange) int {
 
 // Maps range to set of ranges. Iirc there can be no overlap in the image of a
 // map, so that's something we don't have to worry about
-func MapsToRange(in Range, mapRanges []MapRange) RangeSet {
+func MapsToRange(in utils.Range, mapRanges []MapRange) utils.RangeSet {
     //fmt.Printf("--Maps To Range--\n")
     //fmt.Printf("\t[in]: %v; [mr]: %v\n", in, mapRanges)
-    out := RangeSet{}
+    out := utils.RangeSet{}
 
     // inclusive indices
-    start, end := in.start, in.start + in.n - 1
+    start, end := in.Start, in.Start + in.N - 1
     cur := end
 
     for cur >= start {
@@ -201,16 +84,16 @@ func MapsToRange(in Range, mapRanges []MapRange) RangeSet {
 
         // On no intersection, just add identity range
         if err != nil {
-            out = out.Add(Range{
-                start: start,
-                n: cur - start + 1,
+            out = out.Add(utils.Range{
+                Start: start,
+                N: cur - start + 1,
             })
             //fmt.Printf("\tNo valid map, just adding identity...\n")
             break
         } else if nextLowestMapRange.src + nextLowestMapRange.n - 1 < start {
-            out = out.Add(Range{
-                start: start,
-                n: cur - start + 1,
+            out = out.Add(utils.Range{
+                Start: start,
+                N: cur - start + 1,
             })
             //fmt.Printf("\tNo valid map, just adding identity...\n")
             break
@@ -258,17 +141,17 @@ func MapsToRange(in Range, mapRanges []MapRange) RangeSet {
         if start >= src && cur <= lastSrcIdx {
             // 1
             //fmt.Printf("\tCase 1\n")
-            out = out.Add(Range{
-                start: nextLowestMapRange.dst + (start - src),
-                n: cur - start + 1,
+            out = out.Add(utils.Range{
+                Start: nextLowestMapRange.dst + (start - src),
+                N: cur - start + 1,
             })
             break
         } else if start < src && cur <= lastSrcIdx {
             // 2
             //fmt.Printf("\tCase 2\n")
-            out = out.Add(Range{
-                start: nextLowestMapRange.dst,
-                n: cur - src + 1,
+            out = out.Add(utils.Range{
+                Start: nextLowestMapRange.dst,
+                N: cur - src + 1,
             })
             cur = src - 1
             //fmt.Printf("\tcurrent out: %v\n", out)
@@ -277,13 +160,13 @@ func MapsToRange(in Range, mapRanges []MapRange) RangeSet {
             // 3
             //fmt.Printf("\tCase 3\n")
             lastDstIdx := nextLowestMapRange.dst + nextLowestMapRange.n - 1
-            out = out.Add(Range{
-                start: lastDstIdx + 1,
-                n: cur - lastSrcIdx,
+            out = out.Add(utils.Range{
+                Start: lastDstIdx + 1,
+                N: cur - lastSrcIdx,
             })
-            out = out.Add(Range{
-                start: nextLowestMapRange.dst,
-                n: nextLowestMapRange.n,
+            out = out.Add(utils.Range{
+                Start: nextLowestMapRange.dst,
+                N: nextLowestMapRange.n,
             })
             cur = src - 1
             //fmt.Printf("\tcurrent out: %v\n", out)
@@ -292,13 +175,13 @@ func MapsToRange(in Range, mapRanges []MapRange) RangeSet {
             // 4
             //fmt.Printf("\tCase 4\n")
             lastDstIdx := nextLowestMapRange.dst + nextLowestMapRange.n - 1
-            out = out.Add(Range{
-                start: lastDstIdx + 1,
-                n: cur - lastSrcIdx,
+            out = out.Add(utils.Range{
+                Start: lastDstIdx + 1,
+                N: cur - lastSrcIdx,
             })
-            out = out.Add(Range{
-                start: nextLowestMapRange.dst + (start - src),
-                n: nextLowestMapRange.n - (start - src),
+            out = out.Add(utils.Range{
+                Start: nextLowestMapRange.dst + (start - src),
+                N: nextLowestMapRange.n - (start - src),
             })
             break
         } else {
@@ -315,8 +198,8 @@ func MapsToRange(in Range, mapRanges []MapRange) RangeSet {
 }
 
 // Mapping ranges, assumes that mapRanges is already sorted
-func MapsToRangeSet(in RangeSet, mapRanges []MapRange) RangeSet {
-    out := RangeSet{}
+func MapsToRangeSet(in utils.RangeSet, mapRanges []MapRange) utils.RangeSet {
+    out := utils.RangeSet{}
 
     for _, rg := range in {
         //fmt.Printf("\t\tBefore Union: %v\n", out)
@@ -379,11 +262,11 @@ func main() {
 
     utils.IterateLines("input.txt", parseLine)
 
-    seedRanges := RangeSet{}
+    seedRanges := utils.RangeSet{}
     for i := 0; i < len(seeds) / 2; i++ {
-        seedRanges = append(seedRanges, Range{
-            start: seeds[2*i],
-            n: seeds[2*i+1],
+        seedRanges = append(seedRanges, utils.Range{
+            Start: seeds[2*i],
+            N: seeds[2*i+1],
         })
     }
 
@@ -409,5 +292,5 @@ func main() {
 
     fmt.Printf("\n")
     
-    fmt.Printf("Minimum Result: %d\n", in[0].start)
+    fmt.Printf("Minimum Result: %d\n", in[0].Start)
 }
