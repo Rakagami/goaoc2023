@@ -7,7 +7,10 @@ import (
 
 // Iterate through the lines that takes a callback
 func IterateLines(filePath string, callback func(string) error) error {
-    f, _ := os.OpenFile(filePath, os.O_RDONLY, os.ModePerm)
+    f, err := os.OpenFile(filePath, os.O_RDONLY, os.ModePerm)
+    if err != nil {
+        return err
+    }
     defer f.Close()
     sc := bufio.NewScanner(f)
     for sc.Scan() {
