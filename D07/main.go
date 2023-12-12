@@ -58,8 +58,49 @@ func (hand Hand) Tier() int {
     }
 }
 
+// Returns joker tier of hand. The trick is to remove all J's and calculate the tier
+// We can define a transition matrix ('*' denotes a not possible scenario)
+//     J's | 0 | 1 | 2 | 3 | 4 | 5 |
+// Tier    |---|---|---|---|---|---|
+//  0      | 0 | 1 | 3 | 5 | 6 | 6 |
+//  1      | 1 | 3 | 5 | 6 | * | * |
+//  2      | 2 | 4 | * | * | * | * |
+//  3      | 3 | 5 | 6 | * | * | * |
+//  4      | 4 | 5 | 6 | * | * | * |
+//  5      | 5 | 6 | * | * | * | * |
+//  6      | 6 | * | * | * | * | * |
+func (hand Hand) JokerTier() int {
+    transitionTable := [7][6]int {
+        {0,  1,  3,  5,  6,  6},
+        {1,  3,  5,  6, -1, -1},
+        {2,  4, -1, -1, -1, -1},
+        {3,  5,  6, -1, -1, -1},
+        {4,  5,  6, -1, -1, -1},
+        {5,  6, -1, -1, -1, -1},
+        {6, -1, -1, -1, -1, -1},
+    }
+    subHand := Hand("")
+    jCount := 0
+    for _, c := range hand {
+        if c != 'J' {
+            subHand += Hand(c)
+        } else {
+            jCount++
+        }
+    }
+
+    subTier := subHand.Tier()
+    jokerTier := transitionTable[subTier][jCount]
+
+    if jokerTier >= 0 {
+        return jokerTier
+    } else {
+        panic(errors.New("Oh nooo!!"))
+    }
+}
+
 func (hand1 Hand) Less(hand2 Hand) bool {
-    tier1, tier2 := hand1.Tier(), hand2.Tier()
+    tier1, tier2 := hand1.JokerTier(), hand2.JokerTier()
     if tier1 < tier2 {
         return true
     } else if tier1 > tier2 {
@@ -74,7 +115,7 @@ func (hand1 Hand) Less(hand2 Hand) bool {
         case 'T':
             return 10
         case 'J':
-            return 11
+            return 0
         case 'Q':
             return 12
         case 'K':
@@ -152,5 +193,5 @@ func main() {
         sum += bid.amount * (i+1)
     }
 
-    fmt.Printf("Sum: %v\n", sum)
+    fmt.Printf("Sum with Joker Rule: %v\n", sum)
 }
